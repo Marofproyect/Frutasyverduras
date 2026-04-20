@@ -513,6 +513,10 @@
             get productosFiltrados() {
                 if (!this.busqueda) return this.productos;
                 const q = this.busqueda.toLowerCase();
+                const categorias = ['frutas','verduras','congelados','despensa','gourmet'];
+                if (categorias.includes(q)) {
+                    return this.productos.filter(p => p.cat.toLowerCase() === q);
+                }
                 return this.productos.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q));
             },
             get totalItems() {
@@ -565,7 +569,7 @@
                 });
                 localStorage.setItem('pedidos_batuco', JSON.stringify(pedidos));
                 
-                // Nuevo mensaje WhatsApp
+                                                // Nuevo mensaje WhatsApp
                 let mensaje = `Vecin@ ya estamos procesando su pedido 😍%0A%0A`;
                 mensaje += `Puede cancelar con débito, crédito o transferencia%0A%0A`;
                 mensaje += `*Datos bancarios:*%0ABanco de Chile%0ACuenta Vista 00-045-61252-93%0ARUT 17.346.065-1%0AMarof Jaidar%0Amarofalberto@gmail.com%0A%0A`;
@@ -574,8 +578,28 @@
                 this.carrito.forEach(i => {
                     mensaje += `• ${i.cantidad}x ${i.nombre} - ${this.formatoPrecio(i.precio * i.cantidad)}%0A`;
                 });
-                mensaje += `%0A*Total: ${this.formatoPrecio(total)}*%0A`;
-                mensaje += this.total() >= 20000 ? `*Envío: GRATIS* ✅` : `*Envío: $2.500*`;
+                mensaje += `%0A`;
+                const envio = this.total() >= 20000 ? 0 : 2500;
+                const totalFinal = total + envio;
+                mensaje += `*Subtotal productos: ${this.formatoPrecio(total)}*%0A`;
+                
+                // Guardar en Google Sheets
+                const productosTexto = this.carrito.map(i => `${i.cantidad}x ${i.nombre}`).join(', ');
+                fetch('https://script.google.com/macros/s/AKfycbxf6JYvEjbmZMXiD8bAqZ4EHEkFvE_1i1f08HI6o9vGVA8gXMGB_y26l4rEEyTCKW_-/exec', {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        orden: numeroOrden,
+                        productos: productosTexto,
+                        subtotal: total,
+                        envio: envio,
+                        total: totalFinal
+                    })
+                });
+                
+                mensaje += envio === 0 ? `*Envío: GRATIS* ✅%0A` : `*Envío: ${this.formatoPrecio(envio)}*%0A`;
+                mensaje += `*MONTO TOTAL A PAGAR: ${this.formatoPrecio(totalFinal)}*%0A%0A`;
                 
                 window.open(`https://wa.me/56968010301?text=${mensaje}`, '_blank');
                 this.mostrarToast(`Pedido ${numeroOrden} enviado`);
